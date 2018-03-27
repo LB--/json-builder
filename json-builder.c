@@ -326,7 +326,7 @@ json_value * json_integer_new (json_int_t integer)
    return value;
 }
 
-json_value * json_double_new (double dbl)
+json_value * json_double_new (json_double_t dbl)
 {
    json_value * value = (json_value *) calloc (1, sizeof (json_builder_value));
    
@@ -662,7 +662,7 @@ size_t json_measure_ex (json_value * value, json_serialize_opts opts)
 
          case json_double:
 
-            total += snprintf (NULL, 0, "%g", value->u.dbl);
+            total += snprintf (NULL, 0, "%Lg", (long double) value->u.dbl);
 
             /* Because sometimes we need to add ".0" if sprintf does not do it
              * for us. Downside is that we allocate more bytes than strictly
@@ -881,7 +881,7 @@ void json_serialize_ex (json_char * buf, json_value * value, json_serialize_opts
 
             ptr = buf;
 
-            buf += sprintf (buf, "%g", value->u.dbl);
+            buf += sprintf (buf, "%Lg", (long double) value->u.dbl);
 
             if ((dot = strchr (ptr, ',')))
             {
