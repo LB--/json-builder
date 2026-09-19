@@ -55,9 +55,9 @@ int main (void)
    test_file ("valid-0009.json", &num_failed);
    test_file ("valid-0010.json", &num_failed);
    test_file ("valid-0011.json", &num_failed);
-   test_file ("valid-0012.json", &num_failed); 
+   test_file ("valid-0012.json", &num_failed);
 
-   printf ("Total failed tests: %d\n", num_failed);
+   fprintf (stderr, "Total failed tests: %d\n", num_failed);
 
    return num_failed ? EXIT_FAILURE : EXIT_SUCCESS;
 }
@@ -65,33 +65,54 @@ int main (void)
 void test_file (const char * filename, int * num_failed)
 {
    FILE * file;
+   long endpos;
    size_t size;
+   size_t sizeread;
    char * buffer;
 
-   printf ("Running test: %s\n", filename);
+   fprintf (stderr, "Running test: %s\n", filename);
 
-   if (! (file = fopen (filename, "r")))
+   if (! (file = fopen (filename, "rb")))
    {
       fprintf (stderr, "  Error opening file\n");
+      ++ *num_failed;
       return;
    }
 
-   fseek (file, 0, SEEK_END);
-   size = ftell (file);
-   fseek (file, 0, SEEK_SET);
+   if (0 != fseek (file, 0, SEEK_END))
+   {
+      fprintf (stderr, "  Error seeking to file end\n");
+      ++ *num_failed;
+      return;
+   }
+   endpos = ftell (file);
+   if (endpos < 0)
+   {
+      fprintf (stderr, "  Error obtaining file end position\n");
+      ++ *num_failed;
+      return;
+   }
+   size = (size_t) endpos;
+   if (0 != fseek (file, 0, SEEK_SET))
+   {
+      fprintf (stderr, "  Error seeking to file start\n");
+      ++ *num_failed;
+      return;
+   }
 
    if (! (buffer = (char *) malloc (size)))
    {
       fprintf (stderr, "  Error allocating memory\n");
-
+      ++ *num_failed;
       fclose (file);
       return;
    }
 
-   if (fread (buffer, 1, size, file) != size)
+   sizeread = fread (buffer, 1, size, file);
+   if (sizeread != size)
    {
-      fprintf (stderr, "  Error reading file\n");
-
+      fprintf (stderr, "  Error reading file, expected %lu bytes but got %lu\n", (unsigned long) size, (unsigned long) sizeread);
+      ++ *num_failed;
       fclose (file);
       return;
    }
@@ -124,30 +145,31 @@ void test_buf (const char * buffer, size_t size, int * num_failed)
    }
 
    measured = json_measure (value);
-   printf ("measured len: %d\n", (int) measured);
+   fprintf (stderr, "measured len: %d\n", (int) measured);
 
    buf = (char *) malloc (measured);
    if (!buf)
    {
       fprintf (stderr, "  Error allocating memory\n");
+      ++ *num_failed;
       json_value_free (value);
       return;
    }
    json_serialize (buf, value);
 
    serialized = strlen (buf) + 1;
-   printf ("serialized len: %lu\n", (unsigned long) serialized);
+   fprintf (stderr, "serialized len: %lu\n", (unsigned long) serialized);
 
-   printf ("serialized:\n%s\n", buf);
+   fprintf (stderr, "serialized:\n%s\n", buf);
 
    if (serialized > measured)
    {
-      printf ("Serialized more than measured\n");
+      fprintf (stderr, "Serialized more than measured\n");
       ++ *num_failed;
    }
    else if (! (value2 = json_parse_ex (&settings, buf, strlen(buf), error)))
    {
-      printf ("Failed to re-parse: %s\n", error);
+      fprintf (stderr, "Failed to re-parse: %s\n", error);
       ++ *num_failed;
    }
    else
@@ -156,22 +178,22 @@ void test_buf (const char * buffer, size_t size, int * num_failed)
       switch (equality)
       {
          case 1:
-            printf ("success\n");
+            fprintf (stderr, "success\n");
             break;
          case 0:
-            printf ("Changed after re-parse\n");
+            fprintf (stderr, "Changed after re-parse\n");
             ++ *num_failed;
             break;
          case -1:
-            printf ("Memory allocation failure\n");
+            fprintf (stderr, "Memory allocation failure\n");
             ++ *num_failed;
             break;
          case -2:
-            printf ("Child objects measured larger than their parents\n");
+            fprintf (stderr, "Child objects measured larger than their parents\n");
             ++ *num_failed;
             break;
          default:
-            printf ("Memory corruption\n");
+            fprintf (stderr, "Memory corruption\n");
             ++ *num_failed;
             break;
       }
